@@ -4,6 +4,7 @@ export interface Vendor {
 	vendorPrice: number;
 	supplyPoc: string; // Point of Contact from the Supply team
 	vendorPaymentTerms: string;
+<<<<<<< HEAD
 	brandInvoiceAlignment: "Aligned" | "NotAligned" | "";
 	pickupAddress: string;
 	pickupState: string;
@@ -34,6 +35,18 @@ export interface VendorWithSkus {
 	}>;
 }
 
+=======
+	brandInvoiceAlignment: string;
+	pickupAddress: string;
+	flashSale: boolean;
+	expectedPickupTime: number; // Stored as a timestamp (milliseconds since epoch)
+	vendorStatus: "Pending" | "Approved" | "Rejected";
+	// PO fields managed by Supply Ops
+	poNumber: string | ""; // PO number can be null if not issued yet
+	poStatus: string | ""; // PO status can be null if not issued yet
+}
+
+>>>>>>> 553e233f085c4703db13b12030cce13bef3e5b77
 // Represents a Stock Keeping Unit (SKU) within a purchase request
 export interface SKU {
 	sku: string;

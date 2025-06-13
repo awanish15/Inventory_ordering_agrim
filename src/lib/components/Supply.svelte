@@ -19,8 +19,11 @@
     let showConfirmationModal = false;
     let requestForSubmission: PurchaseRequest | null = null;
     let savedVendors: Record<string, Record<string, Vendor[]>> = {};
+<<<<<<< HEAD
     // Add to script section at the top with other state variables
     let selectedRequestDetails: PurchaseRequest | null = null;
+=======
+>>>>>>> 553e233f085c4703db13b12030cce13bef3e5b77
 
     function createEmptyVendor(): Vendor {
         return {
@@ -30,6 +33,7 @@
             vendorPaymentTerms: '',
             brandInvoiceAlignment: '',
             pickupAddress: '',
+<<<<<<< HEAD
             pickupState: '',
             flashSale: false,
             expectedPickupDate: Date.now(),
@@ -43,6 +47,13 @@
             vendorPOCPhone: '',
             poTotalValue: 0,
             dateOfIssue: Date.now(),
+=======
+            flashSale: false,
+            expectedPickupTime: Date.now(),
+            vendorStatus: 'Pending',
+            poNumber: '',
+            poStatus: ''
+>>>>>>> 553e233f085c4703db13b12030cce13bef3e5b77
         };
     }
     let vendorForms: Vendor[] = [createEmptyVendor()];
@@ -72,6 +83,7 @@
             vendor.supplyPoc &&
             vendor.vendorPaymentTerms &&
             vendor.brandInvoiceAlignment &&
+<<<<<<< HEAD
             vendor.pickupAddress &&
             vendor.pickupState &&
             vendor.vendorPOCName &&
@@ -81,6 +93,20 @@
             vendor.flashSale !== undefined
     );
 }
+=======
+            vendor.pickupAddress !== undefined &&
+            vendor.flashSale !== undefined &&
+            vendor.expectedPickupTime !== undefined
+        );
+    }
+
+    // function startEditing(request: PurchaseRequest, skuIndex: number) {
+    //     currentlyEditing = { requestId: request.id, skuIndex };
+    //     // Pre-fill with existing vendor data if available, otherwise start fresh
+    //     const existingVendors = request.skus[skuIndex].vendors;
+    //     vendorForms = existingVendors.length > 0 ? existingVendors : [{}];
+    // }
+>>>>>>> 553e233f085c4703db13b12030cce13bef3e5b77
 
     // Modified startEditing function
     function startEditing(request: PurchaseRequest, skuIndex: number) {
@@ -107,6 +133,83 @@
 
     // New save vendors function
     async function saveVendors() {
+<<<<<<< HEAD
+=======
+        if (!currentlyEditing) return;
+
+        // Validation
+        if (vendorForms.some(v => !v.vendorId || !v.vendorPrice)) {
+            // Show validation error if any vendor is missing required fields
+            closeModal(); // Close the modal before showing error
+            vendorForms = [createEmptyVendor()]; // Reset to empty form
+            showMessage("Validation Error", "Each vendor must have at least a Vendor ID and a Price.");
+            return;
+        }
+
+        const { requestId, skuIndex } = currentlyEditing;
+        const request = pendingSupplyInput.find(r => r.id === requestId);
+        if (!request) return;
+
+        const skuId = request.skus[skuIndex].sku;
+
+        // Initialize nested structure if not exists
+        if (!savedVendors[requestId]) {
+            savedVendors[requestId] = {};
+        }
+        
+        // Save vendors for this SKU
+        savedVendors[requestId][skuId] = vendorForms;
+        
+        closeModal(); // Close the modal
+        showMessage("Success", "Vendors saved successfully for this SKU.");
+    }
+
+    // New submit all vendors function
+    async function submitAllVendors(request: PurchaseRequest) {
+        const requestRef = doc(db, "purchaseRequests", request.id);
+
+        // Deep copy SKUs and update with saved vendors
+        const updatedSkus = request.skus.map(sku => ({
+            ...sku,
+            vendors: savedVendors[request.id][sku.sku]
+        }));
+
+        const newHistoryLog: HistoryLog = {
+            status: "Pending Category Approval",
+            user: userId,
+            timestamp: Date.now()
+        };
+
+        try {
+            await updateDoc(requestRef, {
+                skus: updatedSkus,
+                status: "Pending Category Approval",
+                history: [...request.history, newHistoryLog]
+            });
+            
+            showMessage("Success", "All vendors submitted for Category approval.");
+            delete savedVendors[request.id]; // Cleanup saved vendors
+            showConfirmationModal = false;
+            requestForSubmission = null;
+            
+        } catch (e: any) {
+            showMessage("Error", `Failed to submit vendors: ${e.message}`);
+        }
+    }
+
+    // function addVendorForm() {
+    //     if (vendorForms.length < 3) {
+    //         vendorForms = [...vendorForms, {}];
+    //     } else {
+    //         showMessage(
+    //             "Limit Reached",
+    //             "You can only add up to 3 vendors per SKU.",
+    //         );
+    //     }
+    // }
+
+    async function submitVendors() {
+>>>>>>> 553e233f085c4703db13b12030cce13bef3e5b77
         if (!currentlyEditing) return;
 
         // Validation
@@ -405,6 +508,7 @@
                     {#each pendingSupplyInput as request (request.id)}
                         {#each request.skus as sku, skuIndex (sku.sku)}
                             <tr>
+<<<<<<< HEAD
                                 <!-- Replace the existing request ID cell in the main table -->
                                 {#if skuIndex === 0}
                                     <td rowspan={request.skus.length} class="align-top font-mono text-xs">
@@ -414,6 +518,11 @@
                                         >
                                             {request.id}
                                         </button>
+=======
+                                {#if skuIndex === 0}
+                                    <td rowspan={request.skus.length} class="align-top font-mono text-xs">
+                                        {request.id}
+>>>>>>> 553e233f085c4703db13b12030cce13bef3e5b77
                                         {#if areAllSkusComplete(request)}
                                             <button
                                                 class="btn btn-sm btn-success mt-2"

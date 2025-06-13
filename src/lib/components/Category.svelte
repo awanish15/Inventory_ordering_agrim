@@ -480,7 +480,137 @@ $: {
     <div class="divider"></div>
 
     <!-- Section 2: Requests Pending My Approval -->
+<<<<<<< HEAD
 <h3 class="text-xl font-bold mb-4">Requests Pending My Approval</h3>
+{#if pendingMyApproval.length === 0}
+    <div class="alert alert-info">
+        You have no requests waiting for vendor approval.
+    </div>
+{:else}
+    <div class="space-y-4">
+        {#each pendingMyApproval as request (request.id)}
+        <div class="collapse bg-base-100 border border-base-300 mb-4">
+            <input type="checkbox" class="collapse-toggle" />
+            <div class="collapse-title font-semibold flex justify-between items-center">
+                <span>Request ID: {request.id}</span>
+            </div>
+            {#if areAllSkusSelectedForRequest(request)}
+                <button
+                    class="btn btn-primary mx-4 mb-4"
+                    on:click|stopPropagation={() => showApprovalConfirmation(request)}
+                >
+                    Approve Selected Vendors
+                </button>
+            {/if}
+            <div class="collapse-content">
+                {#each request.skus as sku, skuIndex (sku.sku)}
+                    <div class="divider text-sm">{sku.sku}</div>
+                    <p><strong>Vendors proposed by Supply Team:</strong></p>
+                    {#if !sku.vendors || sku.vendors.length === 0}
+                        <p class="text-xs italic">No vendors submitted yet.</p>
+                    {:else}
+                        <div class="space-y-2">
+                            {#each sku.vendors as vendor (vendor.vendorId)}
+                                <div class="flex items-center justify-between p-2 rounded-md">
+                                    <label class="flex items-center space-x-4">
+                                        <input
+                                            type="radio"
+                                            name="vendor_{request.id}_{sku.sku}"
+                                            value={vendor.vendorId}
+                                            checked={selectedVendors[request.id]?.[sku.sku] === vendor.vendorId}
+                                            on:change={() => handleVendorSelection(request.id, sku.sku, vendor.vendorId)}
+                                            class="radio radio-primary"
+                                        />
+                                        <span>{vendor.vendorId} - Price: ${vendor.vendorPrice}</span>
+                                    </label>
+=======
+    <!-- <section>
+    <h3 class="text-xl font-bold">Requests Pending My Approval</h3>
+    {#if pendingMyApproval.length === 0}
+        <div class="alert alert-info">
+            You have no requests waiting for vendor approval.
+        </div>
+    {:else}
+        <div class="space-y-4">
+            {#each pendingMyApproval as request (request.id)}
+                <div class="collapse bg-base-100 border border-base-300 mb-4">
+                    <input type="checkbox" />
+                    <div class="collapse-title font-semibold">
+                        Request ID: {request.id}
+                    </div>
+                    <div class="collapse-content">
+                        {#each request.skus as sku, skuIndex (sku.sku)}
+                            <div class="divider text-sm">{sku.sku}</div>
+                            <p>
+                                <strong>Vendors proposed by Supply Team:</strong
+                                >
+                            </p>
+                            {#if !sku.vendors || sku.vendors.length === 0}
+                                <p class="text-xs italic">
+                                    No vendors submitted yet.
+                                </p>
+                            {:else}
+                                <div class="space-y-2">
+                                    {#each sku.vendors as vendor (vendor.vendorId)}
+                                        <div
+                                            class="flex items-center justify-between p-2 rounded-md"
+                                            class:bg-green-200={vendor.vendorStatus ===
+                                                "Approved"}
+                                            class:bg-red-200={vendor.vendorStatus ===
+                                                "Rejected"}
+                                        >
+                                            <span
+                                                >{vendor.vendorId} - Price: ${vendor.vendorPrice}</span
+                                            >
+                                            {#if vendor.vendorStatus !== "Approved"}
+                                                <button
+                                                    class="btn btn-sm btn-success"
+                                                    onclick={() =>
+                                                        handleVendorApproval(
+                                                            request,
+                                                            skuIndex,
+                                                            vendor.vendorId,
+                                                        )}
+                                                >
+                                                    Approve
+                                                </button>
+                                            {:else}
+                                                <span
+                                                    class="badge badge-success gap-2"
+                                                >
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke-width="1.5"
+                                                        stroke="currentColor"
+                                                        class="w-4 h-4"
+                                                        ><path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            d="m4.5 12.75 6 6 9-13.5"
+                                                        /></svg
+                                                    >
+                                                    Approved
+                                                </span>
+                                            {/if}
+                                        </div>
+                                    {/each}
+>>>>>>> 553e233f085c4703db13b12030cce13bef3e5b77
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
+                {/each}
+            </div>
+        </div>
+<<<<<<< HEAD
+=======
+    {/if}
+    </section> -->
+
+    <!-- Section 2: Requests Pending My Approval -->
+<h3 class="text-xl font-bold">Requests Pending My Approval</h3>
 {#if pendingMyApproval.length === 0}
     <div class="alert alert-info">
         You have no requests waiting for vendor approval.
@@ -529,6 +659,7 @@ $: {
                 {/each}
             </div>
         </div>
+>>>>>>> 553e233f085c4703db13b12030cce13bef3e5b77
     {/each}
     </div>
 {/if}
