@@ -15,18 +15,38 @@
 
     // Local state to manage the vendors for a specific SKU when a user is editing
     let currentlyEditing: { requestId: string; skuIndex: number } | null = null;
-    let vendorForms: Partial<Vendor>[] = [{}];
+    // let vendorForms: Partial<Vendor>[] = [{}];
+    let showConfirmationModal = false;
+    let requestForSubmission: PurchaseRequest | null = null;
+    let savedVendors: Record<string, Record<string, Vendor[]>> = {};
 
-    function startEditing(request: PurchaseRequest, skuIndex: number) {
-        currentlyEditing = { requestId: request.id, skuIndex };
-        // Pre-fill with existing vendor data if available, otherwise start fresh
-        const existingVendors = request.skus[skuIndex].vendors;
-        vendorForms = existingVendors.length > 0 ? existingVendors : [{}];
+    function createEmptyVendor(): Vendor {
+        return {
+            vendorId: '',
+            vendorPrice: 0,
+            supplyPoc: '',
+            vendorPaymentTerms: '',
+            brandInvoiceAlignment: '',
+            pickupAddress: '',
+            flashSale: false,
+            expectedPickupTime: Date.now(),
+            vendorStatus: 'Pending',
+            poNumber: '',
+            poStatus: ''
+        };
+    }
+    let vendorForms: Vendor[] = [createEmptyVendor()];
+
+    // Helper function to check if all SKUs have vendors
+    function areAllSkusComplete(request: PurchaseRequest): boolean {
+        return request.skus.every(sku => 
+            savedVendors[request.id]?.[sku.sku]?.length > 0
+        );
     }
 
     function addVendorForm() {
         if (vendorForms.length < 3) {
-            vendorForms = [...vendorForms, {}];
+            vendorForms = [...vendorForms, createEmptyVendor()];
         } else {
             showMessage(
                 "Limit Reached",
@@ -34,6 +54,124 @@
             );
         }
     }
+
+    function isValidVendor(vendor: Partial<Vendor>): vendor is Vendor {
+        return !!(
+            vendor.vendorId &&
+            vendor.vendorPrice !== undefined &&
+            vendor.supplyPoc &&
+            vendor.vendorPaymentTerms &&
+            vendor.brandInvoiceAlignment &&
+            vendor.pickupAddress !== undefined &&
+            vendor.flashSale !== undefined &&
+            vendor.expectedPickupTime !== undefined
+        );
+    }
+
+    // function startEditing(request: PurchaseRequest, skuIndex: number) {
+    //     currentlyEditing = { requestId: request.id, skuIndex };
+    //     // Pre-fill with existing vendor data if available, otherwise start fresh
+    //     const existingVendors = request.skus[skuIndex].vendors;
+    //     vendorForms = existingVendors.length > 0 ? existingVendors : [{}];
+    // }
+
+    // Modified startEditing function
+    function startEditing(request: PurchaseRequest, skuIndex: number) {
+        currentlyEditing = { requestId: request.id, skuIndex };
+        const skuId = request.skus[skuIndex].sku;
+        
+        // Initialize from savedVendors if exists, else from request or empty
+        vendorForms = savedVendors[request.id]?.[skuId] || 
+                    request.skus[skuIndex].vendors || 
+                    [createEmptyVendor()];
+        // If no vendors exist, start with an empty vendor form
+        if (vendorForms.length === 0) {
+            vendorForms = [createEmptyVendor()];
+        }
+    }
+
+    function closeModal() {
+        const modalCheckbox = document.getElementById('supply-modal') as HTMLInputElement;
+        if (modalCheckbox) {
+            modalCheckbox.checked = false;
+        }
+        currentlyEditing = null;
+    }
+
+    // New save vendors function
+    async function saveVendors() {
+        if (!currentlyEditing) return;
+
+        // Validation
+        if (vendorForms.some(v => !v.vendorId || !v.vendorPrice)) {
+            // Show validation error if any vendor is missing required fields
+            closeModal(); // Close the modal before showing error
+            vendorForms = [createEmptyVendor()]; // Reset to empty form
+            showMessage("Validation Error", "Each vendor must have at least a Vendor ID and a Price.");
+            return;
+        }
+
+        const { requestId, skuIndex } = currentlyEditing;
+        const request = pendingSupplyInput.find(r => r.id === requestId);
+        if (!request) return;
+
+        const skuId = request.skus[skuIndex].sku;
+
+        // Initialize nested structure if not exists
+        if (!savedVendors[requestId]) {
+            savedVendors[requestId] = {};
+        }
+        
+        // Save vendors for this SKU
+        savedVendors[requestId][skuId] = vendorForms;
+        
+        closeModal(); // Close the modal
+        showMessage("Success", "Vendors saved successfully for this SKU.");
+    }
+
+    // New submit all vendors function
+    async function submitAllVendors(request: PurchaseRequest) {
+        const requestRef = doc(db, "purchaseRequests", request.id);
+
+        // Deep copy SKUs and update with saved vendors
+        const updatedSkus = request.skus.map(sku => ({
+            ...sku,
+            vendors: savedVendors[request.id][sku.sku]
+        }));
+
+        const newHistoryLog: HistoryLog = {
+            status: "Pending Category Approval",
+            user: userId,
+            timestamp: Date.now()
+        };
+
+        try {
+            await updateDoc(requestRef, {
+                skus: updatedSkus,
+                status: "Pending Category Approval",
+                history: [...request.history, newHistoryLog]
+            });
+            
+            showMessage("Success", "All vendors submitted for Category approval.");
+            delete savedVendors[request.id]; // Cleanup saved vendors
+            showConfirmationModal = false;
+            requestForSubmission = null;
+            
+        } catch (e: any) {
+            showMessage("Error", `Failed to submit vendors: ${e.message}`);
+        }
+    }
+
+    // function addVendorForm() {
+    //     if (vendorForms.length < 3) {
+    //         vendorForms = [...vendorForms, {}];
+    //     } else {
+    //         showMessage(
+    //             "Limit Reached",
+    //             "You can only add up to 3 vendors per SKU.",
+    //         );
+    //     }
+    // }
 
     async function submitVendors() {
         if (!currentlyEditing) return;
@@ -85,7 +223,7 @@
     type="checkbox"
     id="supply-modal"
     class="modal-toggle"
-    onchange={(e) =>
+    on:change={(e) =>
         (currentlyEditing = (e.target as HTMLInputElement).checked
             ? currentlyEditing
             : null)}
@@ -95,9 +233,8 @@
         <h3 class="font-bold text-lg">Add/Edit Vendors</h3>
         <p class="py-2 text-sm">
             For SKU: {currentlyEditing
-                ? pendingSupplyInput.find(
-                      (r) => r.id === currentlyEditing?.requestId,
-                  )?.skus[currentlyEditing.skuIndex].sku
+                ? pendingSupplyInput.find(r => r.id === currentlyEditing?.requestId)
+                    ?.skus[currentlyEditing.skuIndex].sku
                 : ""}
         </p>
 
@@ -134,19 +271,46 @@
                 </div>
             {/each}
         </div>
-        <button class="btn btn-sm btn-secondary mt-4" onclick={addVendorForm}
+        <button class="btn btn-sm btn-secondary mt-4" on:click={addVendorForm}
             >Add another vendor</button
         >
 
         <div class="modal-action">
             <label for="supply-modal" class="btn btn-ghost">Cancel</label>
-            <button class="btn btn-primary" onclick={submitVendors}
-                >Submit Vendors</button
-            >
+            <button class="btn btn-primary" on:click={saveVendors}>
+                Save Vendors
+            </button>
         </div>
     </div>
-    <label class="modal-backdrop" for="supply-modal">Close</label>
 </div>
+
+<!-- Add confirmation modal -->
+{#if showConfirmationModal && requestForSubmission}
+    <div class="modal modal-open">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Confirm Vendor Submission</h3>
+            <p class="py-4">
+                Are you sure you want to submit all vendors for Request ID: {requestForSubmission.id}?
+                This will send the request for Category approval.
+            </p>
+            <div class="modal-action">
+                <button class="btn btn-ghost" on:click={() => showConfirmationModal = false}>
+                    Cancel
+                </button>
+                <button 
+                    class="btn btn-primary" 
+                    on:click={() => {
+                        if (requestForSubmission) {
+                            submitAllVendors(requestForSubmission);
+                        }
+                    }}
+                >
+                    Confirm Submit
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
 
 <div class="prose max-w-none">
     <h2 class="text-2xl font-bold mb-6">Supply Team Actions</h2>
@@ -170,7 +334,7 @@
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <!-- <tbody>
                     {#each pendingSupplyInput as request (request.id)}
                         {#each request.skus as sku, skuIndex (sku.sku)}
                             <tr>
@@ -184,16 +348,53 @@
                                 <td>{sku.sku}</td>
                                 <td>{sku.quantity}</td>
                                 <td>
-                                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                                    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                                     <label
                                         for="supply-modal"
                                         class="btn btn-sm btn-primary"
-                                        onclick={() =>
+                                        on:click={() =>
                                             startEditing(request, skuIndex)}
                                     >
                                         {#if sku.vendors && sku.vendors.length > 0}Edit
                                             Vendors{:else}Add Vendors{/if}
+                                    </label>
+                                </td>
+                            </tr>
+                        {/each}
+                    {/each}
+                </tbody> -->
+                <tbody>
+                    {#each pendingSupplyInput as request (request.id)}
+                        {#each request.skus as sku, skuIndex (sku.sku)}
+                            <tr>
+                                {#if skuIndex === 0}
+                                    <td rowspan={request.skus.length} class="align-top font-mono text-xs">
+                                        {request.id}
+                                        {#if areAllSkusComplete(request)}
+                                            <button
+                                                class="btn btn-sm btn-success mt-2"
+                                                on:click={() => {
+                                                    requestForSubmission = request;
+                                                    showConfirmationModal = true;
+                                                }}
+                                            >
+                                                Submit All Vendors
+                                            </button>
+                                        {/if}
+                                    </td>
+                                {/if}
+                                <td>{sku.sku}</td>
+                                <td>{sku.quantity}</td>
+                                <td>
+                                    <label
+                                        for="supply-modal"
+                                        class="btn btn-sm btn-primary"
+                                        on:click={() => startEditing(request, skuIndex)}
+                                    >
+                                        {#if savedVendors[request.id]?.[sku.sku]}
+                                            Update Vendors
+                                        {:else}
+                                            Add Vendors
+                                        {/if}
                                     </label>
                                 </td>
                             </tr>
